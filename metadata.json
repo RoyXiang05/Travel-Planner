@@ -1,0 +1,6 @@
+{
+  "name": "GeoRoute Explorer",
+  "description": "An interactive travel visualization platform for precision route planning, featuring seasonal road intelligence, hazard mapping, and AI-powered local event discovery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
