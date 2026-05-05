@@ -12,7 +12,8 @@ import {
   Snowflake,
   RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -93,11 +94,11 @@ export default function Controls({
 
   return (
     <>
-      <div className="fixed top-6 left-6 right-6 flex justify-end items-center z-[1000]">
-        <div className="flex gap-4">
+      <div className="fixed top-4 md:top-6 left-4 right-4 md:left-6 md:right-6 flex flex-col md:flex-row justify-end items-end md:items-center gap-2 md:gap-4 z-[1000]">
+        <div className="flex flex-wrap justify-end gap-2 md:gap-4 min-w-0">
           {/* Day Selector */}
           {plannedPlan && (
-            <div className="bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-sm flex items-center border border-[#4a5d4e]/10">
+            <div className="bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-lg md:shadow-sm flex items-center border border-[#4a5d4e]/10 overflow-x-auto max-w-[80vw] no-scrollbar">
               <button
                 onClick={() => setSelectedDay(null)}
                 className={cn(
@@ -133,7 +134,7 @@ export default function Controls({
             </div>
           </div>
           
-          <div className="flex bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-sm border border-[#4a5d4e]/10 shrink-0 overflow-hidden">
+          <div className="flex bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-lg md:shadow-sm border border-[#4a5d4e]/10 shrink-0 overflow-hidden">
             {[
               { id: "zh", label: "中文" },
               { id: "en", label: "EN" },
@@ -156,25 +157,29 @@ export default function Controls({
         </div>
       </div>
 
-      <div className="fixed top-6 left-0 z-[1010] flex items-center liquid-container h-[calc(100vh-48px)]">
+      <div className="fixed top-0 left-0 z-[1010] flex items-center liquid-container h-full">
         <motion.div 
-          initial={{ x: -320 }}
-          animate={{ x: isSidebarOpen ? 0 : -320 }}
+          initial={{ x: "-100%" }}
+          animate={{ x: isSidebarOpen ? 0 : "calc(-100% + 0px)" }}
           transition={{ type: "spring", damping: 25, stiffness: 150 }}
           className={cn(
-            "w-80 bg-white/95 backdrop-blur shadow-2xl rounded-r-[2.5rem] p-6 border-r border-[#8b5e3c]/10 flex flex-col relative h-full",
-            !isSidebarOpen && "pointer-events-none"
+            "w-[280px] sm:w-80 bg-white/98 backdrop-blur shadow-2xl rounded-r-[2rem] sm:rounded-r-[2.5rem] p-4 sm:p-6 border-r border-[#8b5e3c]/15 flex flex-col relative h-full transition-shadow",
+            !isSidebarOpen && "shadow-none"
           )}
         >
-          {/* Liquid Toggle Button */}
+          {/* Enhanced Liquid Toggle Button */}
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="absolute -right-10 top-1/2 -translate-y-1/2 w-10 h-24 bg-white/95 backdrop-blur-md border-r border-[#8b5e3c]/10 rounded-r-[2rem] flex items-center justify-center text-[#8b5e3c] hover:bg-gray-50 transition-all shadow-none border-y-0 translate-x-[-1px]"
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 w-8 h-20 sm:w-10 sm:h-24 bg-white shadow-[10px_0_20px_rgba(139,94,60,0.15)] border-r border-y border-[#8b5e3c]/20 rounded-r-[1.5rem] sm:rounded-r-[2rem] flex items-center justify-center text-[#8b5e3c] hover:bg-gray-50 transition-all z-50",
+              isSidebarOpen ? "-right-8 sm:-right-10" : "-right-10 sm:-right-12 bg-[#8b5e3c] text-white border-transparent shadow-[5px_0_15px_rgba(0,0,0,0.1)]"
+            )}
+            aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
           >
             {isSidebarOpen ? (
-              <ChevronLeft className="w-5 h-5 stroke-[1]" />
+              <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 stroke-[2.5]" />
             ) : (
-              <ChevronRight className="w-5 h-5 stroke-[1]" />
+              <ChevronRight className="w-5 h-5 md:w-6 md:h-6 stroke-[2.5]" />
             )}
           </button>
           

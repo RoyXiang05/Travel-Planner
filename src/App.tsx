@@ -6,7 +6,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "./lib/utils";
-import { RefreshCw, Search, ExternalLink, MapPin, Globe, Star, Compass, Utensils } from "lucide-react";
+import { RefreshCw, Search, ExternalLink, MapPin, Globe, Star, Compass, Utensils, X } from "lucide-react";
 
 // Sample Initial Routes (Georgia Military Highway etc.)
 const INITIAL_ROUTES: Route[] = [];
@@ -342,25 +342,26 @@ export default function App() {
       <AnimatePresence>
         {selectedPreview && (
           <motion.div
-            initial={{ x: 400, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 400, opacity: 0 }}
-            className="fixed top-24 right-6 w-80 bg-white/95 backdrop-blur-md shadow-2xl rounded-[2rem] p-6 border border-[#8b5e3c]/10 z-[1050]"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-24 left-4 right-4 md:bottom-auto md:top-24 md:left-auto md:right-6 md:w-80 bg-white/95 backdrop-blur-md shadow-2xl rounded-[2rem] p-6 border border-[#8b5e3c]/10 z-[1050]"
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex flex-col">
                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">
                   {(selectedPreview as any).type?.replace("_", " ") || "Location"}
                 </span>
-                <h3 className="font-serif text-xl text-[#8b5e3c]">
+                <h3 className="font-serif text-xl text-[#8b5e3c] pr-6">
                   {(selectedPreview as any)[selectedLang === "zh" ? "name" : (selectedLang === "en" ? "name_en" : "name_ko")] || (selectedPreview as any).name}
                 </h3>
               </div>
               <button 
                 onClick={() => setSelectedPreview(null)}
-                className="p-1 hover:bg-gray-100 rounded-full text-gray-400"
+                className="p-2 hover:bg-[#8b5e3c]/10 rounded-full text-[#8b5e3c] transition-colors"
+                aria-label="Close"
               >
-                <RefreshCw size={14} className="rotate-45" />
+                <X size={18} strokeWidth={2.5} />
               </button>
             </div>
 
@@ -385,18 +386,7 @@ export default function App() {
               </div>
             )}
 
-            {(selectedPreview as Venue).image && (
-              <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 border border-gray-100">
-                <img 
-                  src={(selectedPreview as Venue).image} 
-                  alt="venue" 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-            )}
-
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar text-balance">
               {(selectedPreview as Venue).rating && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-amber-500">⭐ {(selectedPreview as Venue).rating}</span>
@@ -406,7 +396,7 @@ export default function App() {
                 </div>
               )}
 
-              <p className="text-xs text-gray-600 leading-relaxed">
+              <p className="text-sm text-gray-600 leading-relaxed italic">
                 {(selectedPreview as any)[selectedLang === "zh" ? ( (selectedPreview as any).type === 'restaurant' || (selectedPreview as any).type === 'hotel' || (selectedPreview as any).type === 'cafe' ? "description" : "notes" ) : (selectedLang === "en" ? ((selectedPreview as any).type === 'restaurant' || (selectedPreview as any).type === 'hotel' || (selectedPreview as any).type === 'cafe' ? "description_en" : "notes_en") : ((selectedPreview as any).type === 'restaurant' || (selectedPreview as any).type === 'hotel' || (selectedPreview as any).type === 'cafe' ? "description_ko" : "notes_ko"))] || (selectedPreview as any).description || (selectedPreview as any).notes || (selectedPreview as DrivingTip).message || "No additional information available."}
               </p>
 
@@ -439,9 +429,9 @@ export default function App() {
                   const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}+${(selectedPreview as any).lat},${(selectedPreview as any).lng}`;
                   window.open(url, '_blank');
                 }}
-                className="w-full flex items-center justify-center gap-2 text-[10px] text-gray-400 hover:text-gray-600 transition-colors py-2"
+                className="w-full flex items-center justify-center gap-2 text-xs font-bold text-[#8b5e3c] bg-[#8b5e3c]/5 hover:bg-[#8b5e3c]/10 transition-colors py-3 rounded-xl mt-2"
               >
-                <MapPin size={12} /> {selectedLang === "zh" ? "在 Google 地图上查看" : selectedLang === "ko" ? "Google 지도에서 보기" : "View on Google Maps"}
+                <MapPin size={14} /> {selectedLang === "zh" ? "在 Google 地图上查看" : selectedLang === "ko" ? "Google 지도에서 보기" : "View on Google Maps"}
               </button>
             </div>
           </motion.div>
