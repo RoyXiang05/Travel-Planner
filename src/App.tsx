@@ -7,10 +7,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "./lib/utils";
 import { RefreshCw, Search, ExternalLink, MapPin, Globe, Star, Compass, Utensils } from "lucide-react";
-import { GoogleGenAI } from "@google/genai";
-
-// AI Initialization
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Sample Initial Routes (Georgia Military Highway etc.)
 const INITIAL_ROUTES: Route[] = [];
@@ -191,12 +187,19 @@ export default function App() {
         
         Respond ONLY with the JSON string.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
+      const response = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
       });
 
-      const responseText = response.text;
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to generate plan");
+      }
+
+      const data = await response.json();
+      const responseText = data.text;
       if (!responseText) throw new Error("Empty AI response");
 
       const cleaned = responseText.trim().replace(/```json|```/g, "");
@@ -264,24 +267,31 @@ export default function App() {
       Format as a JSON array of objects: [{ "name": string, "type": string, "description": string, "coordinates": [lat, lng] }]. 
       Only return the JSON.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
       });
 
-      const responseText = response.text;
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to fetch events");
+      }
+
+      const data = await response.json();
+      const responseText = data.text;
       if (!responseText) throw new Error("Empty AI response");
       
       const cleaned = responseText.replace(/```json|```/g, "").trim();
-      const data = JSON.parse(cleaned);
+      const parsed = JSON.parse(cleaned);
 
-      if (Array.isArray(data)) {
-        const processed = data.map((e: any, idx: number) => ({
+      if (Array.isArray(parsed)) {
+        const processed = parsed.map((e: any, idx: number) => ({
           ...e,
           id: e.id || `event-${Date.now()}-${idx}`
         }));
         setEvents(processed);
-        if (data.length > 0) toast.success(`Found ${data.length} events in ${city}`);
+        if (parsed.length > 0) toast.success(`Found ${parsed.length} events in ${city}`);
         else toast.info("No events found for these dates.");
       } else {
         setEvents([]);
