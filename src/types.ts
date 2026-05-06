@@ -17,6 +17,9 @@ export interface Landmark {
   emoji?: string;
   costRange?: string;
   travelTime?: string;
+  transport_recommendation?: string;
+  transport_recommendation_en?: string;
+  transport_recommendation_ko?: string;
 }
 
 export interface Route {
@@ -63,14 +66,31 @@ export interface Venue {
   travelTime?: string;
   parkingInfo?: "free" | "paid" | "unavailable";
   parkingPrice?: string;
+  transport_recommendation?: string;
+  transport_recommendation_en?: string;
+  transport_recommendation_ko?: string;
 }
 
 export interface DrivingTip {
   location: string;
   lat: number;
   lng: number;
-  type: "speed_trap" | "caution" | "scenic";
+  type: "speed_trap" | "caution" | "scenic" | "⚠️Road Warning" | "⛰️Gradient";
   message: string;
+  message_en?: string;
+  message_ko?: string;
+  source?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  sourceLinks: string[];
+  plan: RoutePlanResponse | null;
+  baseLocation?: string;
+  destination?: string;
 }
 
 export interface RoutePlanResponse {
@@ -85,8 +105,12 @@ export interface RoutePlanResponse {
   drivingTips?: DrivingTip[];
   baseLocation?: {
     name: string;
+    name_en?: string;
+    name_ko?: string;
     lat: number;
     lng: number;
     notes?: string;
+    notes_en?: string;
+    notes_ko?: string;
   };
 }

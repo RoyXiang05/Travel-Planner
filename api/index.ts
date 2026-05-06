@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
@@ -12,56 +11,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
-// Lazy initialization of Gemini AI
-let aiClient: GoogleGenAI | null = null;
-function getAiClient() {
-  if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("GEMINI_API_KEY environment variable is required");
-    }
-    aiClient = new GoogleGenAI({ apiKey: key });
-  }
-  return aiClient;
-}
-
 // Health Check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", env: process.env.NODE_ENV });
-});
-
-// API Route: AI Route Planning
-app.post("/api/plan", async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-    });
-    res.json({ text: response.text });
-  } catch (error: any) {
-    console.error("AI Planning Error:", error);
-    res.status(500).json({ error: error.message || "Failed to generate plan" });
-  }
-});
-
-// API Route: AI Event Search
-app.post("/api/events", async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-    });
-    res.json({ text: response.text });
-  } catch (error: any) {
-    console.error("AI Event Error:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch events" });
-  }
 });
 
 app.get("/api/poi/status", (req, res) => {

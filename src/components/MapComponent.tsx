@@ -41,9 +41,13 @@ interface MapComponentProps {
   selectedLang: "zh" | "en" | "ko";
   baseLocation?: {
     name: string;
+    name_en?: string;
+    name_ko?: string;
     lat: number;
     lng: number;
     notes?: string;
+    notes_en?: string;
+    notes_ko?: string;
   };
 }
 
@@ -174,8 +178,10 @@ export default function MapComponent({
         >
           <Popup>
             <div className="p-1">
-              <h3 className="font-bold text-[#4a5d4e]">{selectedLang === 'zh' ? '起点' : selectedLang === 'ko' ? '기점' : 'Base'}: {baseLocation.name}</h3>
-              {baseLocation.notes && <p className="text-xs mt-1 text-gray-500">{baseLocation.notes}</p>}
+              <h3 className="font-bold text-[#4a5d4e]">
+                {selectedLang === 'zh' ? '起点' : selectedLang === 'ko' ? '기점' : 'Base'}: {getLocalized(baseLocation, 'name')}
+              </h3>
+              {getLocalized(baseLocation, 'notes') && <p className="text-xs mt-1 text-gray-500">{getLocalized(baseLocation, 'notes')}</p>}
             </div>
           </Popup>
         </Marker>
@@ -243,7 +249,7 @@ export default function MapComponent({
           <Popup>
             <div className="p-1 max-w-[200px]">
               <h3 className="font-bold text-[#8b5e3c]">{getLocalized(venue, 'name')}</h3>
-              <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">{venue.type}</p>
+              <p className="text-[0.625rem] uppercase font-bold text-gray-400 mb-1">{venue.type}</p>
               {venue.rating && <p className="text-xs text-amber-600 mb-1">⭐ {venue.rating}</p>}
               <p className="text-xs text-gray-600">{getLocalized(venue, 'description')}</p>
             </div>
@@ -266,6 +272,11 @@ export default function MapComponent({
               <h3 className="font-bold text-red-600 capitalize">{tip.type.replace("_", " ")}</h3>
               <p className="text-xs font-bold text-gray-700">{tip.location}</p>
               <p className="text-sm mt-1 text-gray-600">{getLocalized(tip, 'message')}</p>
+              {tip.source && (
+                <p className="text-[10px] mt-2 text-gray-400 font-bold italic">
+                  {selectedLang === "zh" ? "来源: " : selectedLang === "ko" ? "출처: " : "Source: "} {tip.source}
+                </p>
+              )}
             </div>
           </Popup>
         </Marker>

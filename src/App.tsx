@@ -1,12 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import { GoogleGenAI } from "@google/genai";
 import MapComponent from "./components/MapComponent";
 import Controls from "./components/Controls";
-import { Landmark, Route, POI, LocalEvent, RoutePlanResponse, Venue, DrivingTip } from "./types";
+import { Landmark, Route, POI, LocalEvent, RoutePlanResponse, Venue, DrivingTip, Project } from "./types";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "./lib/utils";
-import { RefreshCw, Search, ExternalLink, MapPin, Globe, Star, Compass, Utensils, X } from "lucide-react";
+import { RefreshCw, Search, ExternalLink, MapPin, Globe, Star, Compass, Utensils, X, Download, Save, History, FolderOpen, Film } from "lucide-react";
+import { deserializeState, serializeState } from "./lib/urlUtils";
+import Onboarding from "./components/Onboarding";
+import ExportTools from "./components/ExportTools";
 
 // Sample Initial Routes (Georgia Military Highway etc.)
 const INITIAL_ROUTES: Route[] = [];
@@ -30,8 +35,82 @@ export default function App() {
   const [plannedPlan, setPlannedPlan] = useState<RoutePlanResponse | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedLang, setSelectedLang] = useState<"zh" | "en" | "ko">("zh");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Project Management State
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [currentLinks, setCurrentLinks] = useState<string[]>([""]);
 
   const [isItineraryOpen, setIsItineraryOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Load projects from local storage
+  useEffect(() => {
+    const saved = localStorage.getItem("georoute_projects");
+    if (saved) {
+      try {
+        setProjects(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to load projects", e);
+      }
+    }
+  }, []);
+
+  // Save projects to local storage
+  useEffect(() => {
+    localStorage.setItem("georoute_projects", JSON.stringify(projects));
+  }, [projects]);
+
+  // URL Sharing Hydration
+  useEffect(() => {
+    const dataParam = searchParams.get("data");
+    if (dataParam) {
+      const decoded = deserializeState(dataParam);
+      if (decoded && decoded.plan) {
+        setPlannedPlan(decoded.plan);
+        if (decoded.lang) setSelectedLang(decoded.lang);
+      }
+    }
+  }, [searchParams]);
+
+  // Update URL on plan change
+  useEffect(() => {
+    if (plannedPlan) {
+      const serialized = serializeState({ plan: plannedPlan, lang: selectedLang });
+      setSearchParams({ data: serialized }, { replace: true });
+    }
+  }, [plannedPlan, selectedLang, setSearchParams]);
+
+  const saveCurrentToProject = useCallback((plan: RoutePlanResponse, existingLinks: string[]) => {
+    const newProject: Project = {
+      id: currentProjectId || crypto.randomUUID(),
+      name: plan.name || "New Trip",
+      createdAt: projects.find(p => p.id === currentProjectId)?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sourceLinks: existingLinks,
+      plan: plan,
+    };
+
+    setProjects(prev => {
+      const filtered = prev.filter(p => p.id !== newProject.id);
+      return [newProject, ...filtered];
+    });
+    setCurrentProjectId(newProject.id);
+  }, [currentProjectId, projects]);
+
+  const loadProject = (project: Project) => {
+    setPlannedPlan(project.plan);
+    setCurrentProjectId(project.id);
+    setCurrentLinks(project.sourceLinks || [""]);
+    setIsItineraryOpen(true);
+  };
+
+  const deleteProject = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProjects(prev => prev.filter(p => p.id !== id));
+    if (currentProjectId === id) setCurrentProjectId(null);
+  };
 
   // Sync POI status on load (PRD 3.4)
   useEffect(() => {
@@ -73,16 +152,20 @@ export default function App() {
       title: isZh ? plannedPlan.name : (isEn ? (plannedPlan.name_en || plannedPlan.name) : (plannedPlan.name_ko || plannedPlan.name)),
       summary: isZh ? (plannedPlan.summary || "") : (isEn ? (plannedPlan.summary_en || plannedPlan.summary || "") : (plannedPlan.summary_ko || plannedPlan.summary || "")),
       baseLocation: plannedPlan.baseLocation,
+      baseLocationName: isZh ? plannedPlan.baseLocation?.name : (isEn ? (plannedPlan.baseLocation?.name_en || plannedPlan.baseLocation?.name) : (plannedPlan.baseLocation?.name_ko || plannedPlan.baseLocation?.name)),
       landmarks: filterByDay(plannedPlan.checkpoints || []).map(cp => ({
         ...cp,
+        displayName: isZh ? cp.name : (isEn ? (cp.name_en || cp.name) : (cp.name_ko || cp.name)),
         displayNotes: isZh ? cp.notes : (isEn ? (cp.notes_en || cp.notes) : (cp.notes_ko || cp.notes))
       })),
       restaurants: filterByDay(plannedPlan.venues || []).filter(v => v.type === 'restaurant').map(r => ({
         ...r,
+        displayName: isZh ? r.name : (isEn ? (r.name_en || r.name) : (r.name_ko || r.name)),
         displayDesc: isZh ? r.description : (isEn ? (r.description_en || r.description) : (r.description_ko || r.description))
       })),
       hotels: filterByDay(plannedPlan.venues || []).filter(v => v.type === 'hotel').map(h => ({
         ...h,
+        displayName: isZh ? h.name : (isEn ? (h.name_en || h.name) : (h.name_ko || h.name)),
         displayDesc: isZh ? h.description : (isEn ? (h.description_en || h.description) : (h.description_ko || h.description))
       }))
     };
@@ -134,9 +217,16 @@ export default function App() {
     try {
       const region = destination || "Georgia";
       const prompt = `You are a World-Class Travel Intelligence AI. 
+
+        GOAL: Perform a 100% LOSSLESS extraction from provided social media notes/links (TEXT and VIDEO) and organize into a daily itinerary.
         
-        GOAL: Perform a 100% LOSSLESS extraction from provided social media notes/links and organize into a daily itinerary.
-        
+        STRICT LOCALIZATION RULE: 
+        1. YOU MUST NEVER MIX LANGUAGES. 
+        2. If a field ends in "_en", it MUST be 100% English.
+        3. If a field ends in "_ko", it MUST be 100% Korean.
+        4. If a field has no suffix, it MUST be 100% Chinese (Simplified).
+        5. Translate ALL place names, descriptions, and warnings fully into each language.
+
         INPUT DATA:
         SOURCES:
         ${links.map((l, i) => `[${i + 1}]: ${l}`).join("\n")}
@@ -147,59 +237,48 @@ export default function App() {
         BASE LOCATION/START POINT: ${baseLocationStr || "Not provided"}
 
         STRICT EXECUTION LOGIC:
-        1. LOCALIZATION: You MUST provide "summary", "summary_en", and "summary_ko". They must be translated correctly and completely.
-        2. IMAGE SEARCH: For the "image" field, provide search keywords to find high quality photos. Pro tip: add "high resolution travel photography" to keywords.
-        3. ORGANIZATION: Assign each checkpoint and venue to a "day" (1, 2, 3...) based on their geographical proximity and the destination's optimal flow.
-        4. BASE LOCATION: Geocode the Base Location precisely. Each day's route MUST start and end at this base location.
-        5. TRANSPORT: Provide specific transport recommendations (transport_recommendation, transport_recommendation_en, transport_recommendation_ko) from the base location to each point.
-        6. EXTRACTION: No generic placeholders. Extract all specifics.
+        1. MULTI-MODAL ANALYSIS: If a source is a VIDEO link (e.g., YouTube), analyze its content, transcript (if reachable), and visual descriptions to extract route details.
+        2. LOCALIZATION: You MUST provide "summary", "summary_en", and "summary_ko".
+        3. ATTRIBUTION: For any "drivingTips" (warnings like ⚠️Road Warning, ⛰️Steep), you MUST include a "source" field indicating which link index ([1], [2]...) it came from. IF NOT IN SOURCE, DO NOT ADD.
+        4. ORGANIZATION: Assign each checkpoint to a "day" based on optimal regional flow.
+        5. BASE LOCATION: Each day's route MUST start/end at this base location.
+        6. TRANSPORT: Provide transport recommendations FROM the base location to each point.
+        7. IMAGES: For "image" field, provide specific descriptive keywords for high-res travel photography.
 
         JSON SCHEMA:
         {
           "name": "Route Name", "name_en": "EN", "name_ko": "KO",
           "summary": "ZH Summary", "summary_en": "EN Summary", "summary_ko": "KO Summary",
-          "baseLocation": { "name": "Base Name", "lat": number, "lng": number, "notes": "ZH notes" },
+          "baseLocation": { "name": "Base Name", "name_en": "EN", "name_ko": "KO", "lat": number, "lng": number, "notes": "ZH notes", "notes_en": "EN", "notes_ko": "KO" },
           "checkpoints": [
             { 
-              "name": "Name", "type": "checkpoint" | "viewpoint", 
-              "day": number,
-              "lat": number, "lng": number, 
-              "notes": "ZH Notes", "notes_en": "EN Notes", "notes_ko": "KO Notes",
+              "name": "Name", "name_en": "EN", "name_ko": "KO", "type": "checkpoint" | "viewpoint", 
+              "day": number, "lat": number, "lng": number, 
+              "notes": "ZH", "notes_en": "EN", "notes_ko": "KO",
               "transport_recommendation": "ZH", "transport_recommendation_en": "EN", "transport_recommendation_ko": "KO",
-              "image": "search_keywords",
-              "emoji": "string",
-              "googleMapsUrl": "url"
+              "image": "keywords", "emoji": "string"
             }
           ],
           "venues": [
             { 
-              "name": string, "type": "restaurant" | "hotel" | "cafe", "lat": number, "lng": number, 
-              "day": number,
-              "description": "ZH Desc", "description_en": "EN Desc", "description_ko": "KO Desc",
-              "transport_recommendation": "ZH", "transport_recommendation_en": "EN", "transport_recommendation_ko": "KO",
-              "image": "search_keywords",
-              "emoji": "string",
-              "googleMapsUrl": "url"
+              "name": string, "name_en": "EN", "name_ko": "KO", "type": "restaurant" | "hotel" | "cafe", "lat": number, "lng": number, 
+              "day": number, "description": "ZH", "description_en": "EN", "description_ko": "KO", "image": "keywords", "emoji": "string"
             }
           ],
-          "drivingTips": []
+          "drivingTips": [
+            { "type": "⚠️Road Warning" | "⛰️Gradient", "message": "string", "message_en": "EN", "message_ko": "KO", "lat": number, "lng": number, "source": "Link [N]" }
+          ]
         }
         
         Respond ONLY with the JSON string.`;
 
-      const response = await fetch("/api/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Failed to generate plan");
-      }
-
-      const data = await response.json();
-      const responseText = data.text;
+      const responseText = response.text;
       if (!responseText) throw new Error("Empty AI response");
 
       const cleaned = responseText.trim().replace(/```json|```/g, "");
@@ -215,6 +294,8 @@ export default function App() {
         setPlannedPlan({ ...plan, checkpoints: processedCP });
         if (plan.venues) setExtractedVenues(plan.venues);
         if (plan.drivingTips) setDrivingTips(plan.drivingTips);
+
+        saveCurrentToProject({ ...plan, checkpoints: processedCP }, links);
 
         if (processedCP.length > 0) {
           setCenter([processedCP[0].lat, processedCP[0].lng]);
@@ -248,7 +329,7 @@ export default function App() {
         }
 
         setRoutes(dailyRoutes);
-        toast.success(`Successfully planned: ${plan.name}`);
+        setIsSidebarOpen(false); // Linkage: close sidebar on success
       } else {
         throw new Error("Invalid plan data received from AI.");
       }
@@ -267,19 +348,13 @@ export default function App() {
       Format as a JSON array of objects: [{ "name": string, "type": string, "description": string, "coordinates": [lat, lng] }]. 
       Only return the JSON.`;
 
-      const response = await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Failed to fetch events");
-      }
-
-      const data = await response.json();
-      const responseText = data.text;
+      const responseText = response.text;
       if (!responseText) throw new Error("Empty AI response");
       
       const cleaned = responseText.replace(/```json|```/g, "").trim();
@@ -291,8 +366,6 @@ export default function App() {
           id: e.id || `event-${Date.now()}-${idx}`
         }));
         setEvents(processed);
-        if (parsed.length > 0) toast.success(`Found ${parsed.length} events in ${city}`);
-        else toast.info("No events found for these dates.");
       } else {
         setEvents([]);
       }
@@ -305,7 +378,8 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-screen h-screen bg-[#fdfaf6] overflow-hidden font-sans text-[#2d3436]">
+    <div className="relative w-full h-[100dvh] bg-[#fdfaf6] overflow-hidden font-sans text-[#2d3436]">
+      <Onboarding />
       <Controls 
         selectedLang={selectedLang}
         setSelectedLang={setSelectedLang}
@@ -321,6 +395,14 @@ export default function App() {
         onSearchEvents={handleSearchEvents}
         onPlanRoute={handlePlanRoute}
         isProcessing={isProcessing}
+        projects={projects}
+        currentProjectId={currentProjectId}
+        currentLinks={currentLinks}
+        setCurrentLinks={setCurrentLinks}
+        onLoadProject={loadProject}
+        onDeleteProject={deleteProject}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
       />
       
       <MapComponent 
@@ -349,7 +431,7 @@ export default function App() {
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">
+                <span className="text-[0.625rem] uppercase font-bold text-gray-400 tracking-widest">
                   {(selectedPreview as any).type?.replace("_", " ") || "Location"}
                 </span>
                 <h3 className="font-serif text-xl text-[#8b5e3c] pr-6">
@@ -367,13 +449,13 @@ export default function App() {
 
             {plannedPlan?.baseLocation && (selectedPreview as any).lat && (selectedPreview as any).lng && (
               <div className="mb-4 p-3 bg-[#4a5d4e]/5 rounded-xl border border-[#4a5d4e]/10">
-                <div className="flex justify-between items-center text-[10px] uppercase font-bold text-[#4a5d4e]/70">
+                <div className="flex justify-between items-center text-[0.625rem] uppercase font-bold text-[#4a5d4e]/70">
                   <span>{selectedLang === "zh" ? "距离起始点" : selectedLang === "ko" ? "거점까지의 거리" : "Distance to Base"}</span>
                   <span>{calculateDistance((selectedPreview as any).lat, (selectedPreview as any).lng, plannedPlan.baseLocation.lat, plannedPlan.baseLocation.lng).toFixed(1)} km</span>
                 </div>
-                <div className="mt-2 text-[10px] text-gray-500 leading-tight">
+                <div className="mt-2 text-[0.625rem] text-gray-500 leading-tight text-balance">
                   <span className="font-bold">{selectedLang === "zh" ? "AI 建议:" : selectedLang === "ko" ? "AI 추천:" : "AI Recommended:"}</span> 
-                  {(selectedPreview as any).transport_recommendation || (
+                  {(selectedLang === "zh" ? (selectedPreview as any).transport_recommendation : (selectedLang === "en" ? (selectedPreview as any).transport_recommendation_en : (selectedPreview as any).transport_recommendation_ko)) || (
                     selectedLang === "zh" ? "建议打车或自驾，大约需要 " : 
                     selectedLang === "ko" ? "택시나 자차를 이용하는 것이 좋으며 대략 " : 
                     "Likely taxi or private car is best, travel time "
@@ -396,13 +478,30 @@ export default function App() {
                 </div>
               )}
 
-              <p className="text-sm text-gray-600 leading-relaxed italic">
-                {(selectedPreview as any)[selectedLang === "zh" ? ( (selectedPreview as any).type === 'restaurant' || (selectedPreview as any).type === 'hotel' || (selectedPreview as any).type === 'cafe' ? "description" : "notes" ) : (selectedLang === "en" ? ((selectedPreview as any).type === 'restaurant' || (selectedPreview as any).type === 'hotel' || (selectedPreview as any).type === 'cafe' ? "description_en" : "notes_en") : ((selectedPreview as any).type === 'restaurant' || (selectedPreview as any).type === 'hotel' || (selectedPreview as any).type === 'cafe' ? "description_ko" : "notes_ko"))] || (selectedPreview as any).description || (selectedPreview as any).notes || (selectedPreview as DrivingTip).message || "No additional information available."}
+              <p className="text-sm text-gray-600 leading-relaxed italic text-balance">
+                {(() => {
+                  const p = selectedPreview as any;
+                  const isCp = p.type === 'checkpoint' || p.type === 'viewpoint';
+                  const isVenue = p.type === 'restaurant' || p.type === 'hotel' || p.type === 'cafe';
+                  const isTip = !!p.message;
+
+                  if (selectedLang === 'zh') return p.description || p.notes || p.message;
+                  if (selectedLang === 'en') return p.description_en || p.notes_en || p.message_en || p.description || p.notes || p.message;
+                  if (selectedLang === 'ko') return p.description_ko || p.notes_ko || p.message_ko || p.description || p.notes || p.message;
+                  return p.description || p.notes || p.message || "No additional information available.";
+                })()}
               </p>
+
+              {(selectedPreview as any).source && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[0.625rem] font-bold text-gray-400">
+                  <Film size={12} className="opacity-50" />
+                  {selectedLang === "zh" ? "提取自视频/图文攻略：" : selectedLang === "ko" ? "비디오/텍스트 분석에서 추출됨:" : "Source:"} {(selectedPreview as any).source}
+                </div>
+              )}
 
               {(selectedPreview as Venue).parkingInfo && (
                 <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
-                  <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex justify-between items-center text-[0.625rem]">
                     <span className="font-bold text-blue-600 uppercase">Parking Details</span>
                     <span className="font-bold text-blue-800">{(selectedPreview as Venue).parkingInfo}</span>
                   </div>
@@ -456,33 +555,37 @@ export default function App() {
               onDragEnd={(_, info) => {
                 // Freeform hover - release and stay
                 setItineraryY(prev => {
-                  const newY = typeof prev === 'string' ? window.innerHeight : prev;
+                  const currentH = window.innerHeight;
+                  const newY = typeof prev === 'string' ? currentH : prev;
                   const finalY = (newY as number) + info.offset.y;
                   // Clamp between 0 and bottom
-                  return Math.max(0, Math.min(finalY, window.innerHeight - 100));
+                  return Math.max(0, Math.min(finalY, currentH - 100));
                 });
               }}
               transition={{ type: "spring", damping: 35, stiffness: 400 }}
-              className="fixed bottom-0 left-0 right-0 h-[95vh] bg-white rounded-t-[3rem] shadow-[0_-20px_50px_-15px_rgba(0,0,0,0.15)] z-[1100] border-t border-[#4a5d4e]/10 flex flex-col"
+              className="fixed bottom-0 left-0 right-0 h-[95dvh] bg-white/40 backdrop-blur-3xl rounded-t-[4rem] shadow-[0_-30px_100px_-20px_rgba(0,0,0,0.2)] z-[1100] border-t border-white/30 flex flex-col"
             >
               <div 
-                className="w-full pt-4 pb-4 flex flex-col items-center cursor-ns-resize shrink-0 touch-none active:bg-gray-50 transition-colors rounded-t-[3rem]"
+                className="w-full pt-6 pb-6 flex flex-col items-center cursor-ns-resize shrink-0 touch-none active:bg-white/20 transition-colors rounded-t-[4rem]"
               >
-                <div className="w-16 h-1.5 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors" />
+                <div className="w-20 h-1.5 bg-[#2C2C2C]/10 rounded-full hover:bg-[#2C2C2C]/20 transition-colors" />
               </div>
           
-          <div className="flex-1 overflow-y-auto px-6 md:px-12 pb-[500px] overscroll-contain touch-pan-y custom-scrollbar">
+          <div id="itinerary-content" className="flex-1 overflow-y-auto px-6 md:px-12 pb-[100px] overscroll-contain touch-pan-y custom-scrollbar">
             {localizedContent && (
-              <div className="max-w-6xl mx-auto space-y-12 pb-48">
+              <div className="max-w-6xl mx-auto space-y-8 pb-12">
               {/* Header */}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                  <h2 className="font-serif text-4xl text-[#4a5d4e] tracking-tight mb-2">
+                  <h2 className="font-serif text-5xl text-[#2C2C2C] tracking-tight mb-3">
                     {localizedContent.title}
                   </h2>
-                  <p className="text-sm text-[#8b5e3c]/60 font-medium tracking-wide uppercase">
-                    {selectedLang === "zh" ? "AI 多源优化合成行程" : selectedLang === "ko" ? "AI 다중 소스 최적화 합성 일정" : "AI Multi-Source Optimized Synthesis"}
-                  </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <p className="text-sm text-[#8b5e3c]/60 font-serif tracking-wide">
+                      {selectedLang === "zh" ? "AI 多源优化合成行程" : selectedLang === "ko" ? "AI 다중 소스 최적화 합성 일정" : "AI Multi-Source Optimized Synthesis"}
+                    </p>
+                    <ExportTools plan={plannedPlan} lang={selectedLang} />
+                  </div>
                 </div>
               </div>
 
@@ -490,7 +593,7 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-[#fdfaf6] p-8 md:p-10 rounded-[3rem] border border-[#4a5d4e]/10 relative overflow-hidden"
+                className="bg-white/40 backdrop-blur-xl p-8 md:p-12 rounded-[3.5rem] border border-white/30 shadow-sm relative overflow-hidden"
               >
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                   <Star size={120} fill="currentColor" className="text-[#4a5d4e]" />
@@ -528,25 +631,25 @@ export default function App() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="group bg-[#fdfaf6] p-4 rounded-[2.5rem] border border-[#8b5e3c]/5 hover:bg-white hover:shadow-xl transition-all duration-500"
+                      className="group bg-white/40 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/30 hover:bg-white/60 hover:shadow-xl transition-all duration-500"
                     >
                       <div className="space-y-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xl shrink-0">{landmark.emoji || "📍"}</span>
-                            <h4 className="font-serif text-md text-[#4a5d4e] truncate pr-2">{landmark.name}</h4>
+                            <h4 className="font-serif text-md text-[#2C2C2C] truncate pr-2">{landmark.displayName}</h4>
                           </div>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-[#2C2C2C]/50 font-serif italic">
                             {landmark.displayNotes}
                           </p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             {landmark.costRange && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 bg-[#4a5d4e]/5 text-[#4a5d4e] rounded-md">
+                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#4a5d4e]/5 text-[#4a5d4e] rounded-md">
                                 💰 {landmark.costRange}
                               </span>
                             )}
                             {landmark.travelTime && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 bg-[#4a5d4e]/5 text-[#4a5d4e] rounded-md">
+                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#4a5d4e]/5 text-[#4a5d4e] rounded-md">
                                 ⏱️ {landmark.travelTime}
                               </span>
                             )}
@@ -557,7 +660,7 @@ export default function App() {
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(landmark.name)}+${landmark.lat},${landmark.lng}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[9px] font-black tracking-tighter text-gray-500 hover:border-[#4a5d4e]/20"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#4a5d4e]/20"
                           >
                             {selectedLang === "zh" ? "谷歌地图" : (selectedLang === "ko" ? "Google 지도" : "GMAPS")} <ExternalLink size={8} />
                           </a>
@@ -566,7 +669,7 @@ export default function App() {
                               href={landmark.website}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[9px] font-black tracking-tighter text-gray-500 hover:border-[#4a5d4e]/20"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#4a5d4e]/20"
                             >
                               {selectedLang === "zh" ? "官网" : (selectedLang === "ko" ? "웹사이트" : "WEB")} <Globe size={8} />
                             </a>
@@ -596,28 +699,28 @@ export default function App() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="group bg-[#fdfaf6] p-4 rounded-[2.5rem] border border-[#8b5e3c]/5 hover:bg-white hover:shadow-xl transition-all duration-500"
+                      className="group bg-white/40 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/30 hover:bg-white/60 hover:shadow-xl transition-all duration-500"
                     >
                       <div className="space-y-3">
                         <div>
                           <div className="flex justify-between items-center mb-1">
                             <div className="flex items-center gap-2 truncate pr-2">
                               <span className="text-xl shrink-0">{venue.emoji || "🍴"}</span>
-                              <h4 className="font-serif text-md text-[#8b5e3c] truncate">{venue.name}</h4>
+                              <h4 className="font-serif text-md text-[#8b5e3c] truncate">{venue.displayName}</h4>
                             </div>
-                            <span className="text-[10px] font-bold text-[#e67e22] shrink-0">★ {venue.rating || "4.8"}</span>
+                            <span className="text-[0.625rem] font-bold text-[#e67e22] shrink-0">★ {venue.rating || "4.8"}</span>
                           </div>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-[#2C2C2C]/50 font-serif italic">
                             {venue.displayDesc}
                           </p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             {venue.costRange && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 bg-[#8b5e3c]/5 text-[#8b5e3c] rounded-md">
+                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#8b5e3c]/5 text-[#8b5e3c] rounded-md">
                                 💰 {venue.costRange}
                               </span>
                             )}
                             {venue.travelTime && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 bg-[#8b5e3c]/5 text-[#8b5e3c] rounded-md">
+                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#8b5e3c]/5 text-[#8b5e3c] rounded-md">
                                 ⏱️ {venue.travelTime}
                               </span>
                             )}
@@ -628,7 +731,7 @@ export default function App() {
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.name)}+${venue.lat},${venue.lng}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[9px] font-black tracking-tighter text-gray-500 hover:border-[#8b5e3c]/20"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#8b5e3c]/20"
                            >
                             {selectedLang === "zh" ? "谷歌地图" : (selectedLang === "ko" ? "Google 지도" : "GMAPS")} <ExternalLink size={8} />
                            </a>
@@ -637,7 +740,7 @@ export default function App() {
                               href={venue.website}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[9px] font-black tracking-tighter text-gray-500 hover:border-[#8b5e3c]/20"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#8b5e3c]/20"
                              >
                               {selectedLang === "zh" ? "官网" : (selectedLang === "ko" ? "웹사이트" : "WEB")} <Globe size={8} />
                              </a>
@@ -647,9 +750,65 @@ export default function App() {
                     </motion.div>
                   ))}
                   {localizedContent.restaurants.length === 0 && (
-                    <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-100 rounded-[2.5rem]">
+                    <div className="col-span-full py-6 text-center border-2 border-dashed border-gray-100 rounded-[2.5rem]">
                       <p className="text-sm text-gray-400 italic">
                         {selectedLang === "zh" ? "尚未从这些来源提取到特定餐厅。" : (selectedLang === "ko" ? "아직 이 소스에서 추출된 레스토랑이 없습니다." : "No specific restaurants extracted from these sources yet.")}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* 4. Recommended Hotels */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                    4
+                  </div>
+                  <h3 className="text-xl font-serif text-[#4a5d4e]">
+                    {selectedLang === "zh" ? "推荐住宿" : (selectedLang === "en" ? "Recommended Hotels" : "추천 숙소")}
+                  </h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {localizedContent.hotels.map((venue, idx) => (
+                    <motion.div 
+                      key={venue.name}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="group bg-white/40 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/30 hover:bg-white/60 hover:shadow-xl transition-all duration-500"
+                    >
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <div className="flex items-center gap-2 truncate pr-2">
+                              <span className="text-xl shrink-0">{venue.emoji || "🏨"}</span>
+                              <h4 className="font-serif text-md text-[#8b5e3c] truncate">{venue.displayName}</h4>
+                            </div>
+                            <span className="text-[0.625rem] font-bold text-indigo-500 shrink-0">★ {venue.rating || "4.9"}</span>
+                          </div>
+                          <p className="text-xs text-[#2C2C2C]/50 font-serif italic">
+                            {venue.displayDesc}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                           <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.name)}+${venue.lat},${venue.lng}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#8b5e3c]/20"
+                           >
+                            {selectedLang === "zh" ? "谷歌地图" : (selectedLang === "ko" ? "Google 지도" : "GMAPS")} <ExternalLink size={8} />
+                           </a>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {localizedContent.hotels.length === 0 && (
+                    <div className="col-span-full py-6 text-center border-2 border-dashed border-gray-100 rounded-[2.5rem]">
+                      <p className="text-sm text-gray-400 italic">
+                        {selectedLang === "zh" ? "尚未从这些来源提取到特定住宿。" : (selectedLang === "ko" ? "아직 이 소스에서 추출된 숙소가 없습니다." : "No specific hotels extracted from these sources yet.")}
                       </p>
                     </div>
                   )}
@@ -670,7 +829,7 @@ export default function App() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-[#4a5d4e] text-white px-4 py-2 rounded-full border border-white/20 text-[10px] font-bold tracking-widest shadow-xl flex items-center gap-2"
+              className="bg-[#4a5d4e] text-white px-4 py-2 rounded-full border border-white/20 text-[0.625rem] font-bold tracking-widest shadow-xl flex items-center gap-2"
             >
               ❄️ {selectedLang === "zh" ? "冬季协议已激活" : (selectedLang === "ko" ? "겨울 프로토콜 활성화됨" : "WINTER PROTOCOL ACTIVE")}
             </motion.div>
