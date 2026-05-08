@@ -3,13 +3,15 @@ import { RoutePlanResponse } from "../types";
 import { toast } from "react-toastify";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { cn } from "../lib/utils";
 
 interface ExportToolsProps {
   plan: RoutePlanResponse;
   lang: string;
+  isDarkMode?: boolean;
 }
 
-export default function ExportTools({ plan, lang }: ExportToolsProps) {
+export default function ExportTools({ plan, lang, isDarkMode }: ExportToolsProps) {
   const isZh = lang === "zh";
 
   const exportMarkdown = () => {
@@ -89,22 +91,45 @@ export default function ExportTools({ plan, lang }: ExportToolsProps) {
     <div className="flex flex-wrap gap-3">
       <button 
         onClick={exportMarkdown}
-        className="flex items-center gap-2 px-5 py-2.5 bg-white/40 backdrop-blur-xl border border-white/30 text-[#2C2C2C] rounded-2xl text-[0.625rem] font-serif font-bold hover:bg-white/60 transition-all shadow-sm"
+        className={cn(
+          "flex items-center gap-2 px-5 py-2.5 backdrop-blur-xl border rounded-2xl text-[0.625rem] font-serif font-bold transition-all shadow-sm",
+          isDarkMode 
+            ? "bg-white/5 border-white/10 text-white/80 hover:bg-white/10" 
+            : "bg-white/40 border-white/30 text-[#2C2C2C] hover:bg-white/60"
+        )}
       >
         <FileText size={14} className="opacity-60" /> {isZh ? "导出 MD" : "Export MD"}
       </button>
       <button 
         onClick={exportPDF}
-        className="flex items-center gap-2 px-5 py-2.5 bg-white/40 backdrop-blur-xl border border-white/30 text-[#2C2C2C] rounded-2xl text-[0.625rem] font-serif font-bold hover:bg-white/60 transition-all shadow-sm"
+        className={cn(
+          "flex items-center gap-2 px-5 py-2.5 backdrop-blur-xl border rounded-2xl text-[0.625rem] font-serif font-bold transition-all shadow-sm",
+          isDarkMode 
+            ? "bg-white/5 border-white/10 text-white/80 hover:bg-white/10" 
+            : "bg-white/40 border-white/30 text-[#2C2C2C] hover:bg-white/60"
+        )}
       >
         <Download size={14} className="opacity-60" /> {isZh ? "导出 PDF" : "Export PDF"}
       </button>
       <button 
         onClick={copyShareLink}
-        className="flex items-center gap-2 px-5 py-2.5 bg-[#4a5d4e] text-white rounded-2xl text-[0.625rem] font-serif font-bold hover:opacity-90 transition-all shadow-lg shadow-[#4a5d4e]/20"
+        className={cn(
+          "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[0.625rem] font-serif font-bold hover:opacity-90 transition-all shadow-lg",
+          isDarkMode 
+            ? "bg-amber-100 text-black shadow-amber-900/40" 
+            : "bg-[#4a5d4e] text-white shadow-[#4a5d4e]/20"
+        )}
       >
         <Share2 size={14} /> {isZh ? "分享攻略" : "Share Link"}
       </button>
+      {plan.author && (
+        <div className={cn(
+          "flex items-center px-4 py-2.5 rounded-2xl text-[0.625rem] font-serif font-bold italic transition-colors",
+          isDarkMode ? "text-white/40" : "text-[#8b5e3c]/60"
+        )}>
+          @{plan.author}
+        </div>
+      )}
     </div>
   );
 }

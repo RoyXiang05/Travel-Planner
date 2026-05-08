@@ -97,6 +97,7 @@ export interface RoutePlanResponse {
   name: string;
   name_en?: string;
   name_ko?: string;
+  author?: string;
   summary: string;
   summary_en?: string;
   summary_ko?: string;

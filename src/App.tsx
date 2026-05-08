@@ -36,6 +36,7 @@ export default function App() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedLang, setSelectedLang] = useState<"zh" | "en" | "ko">("zh");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Project Management State
   const [projects, setProjects] = useState<Project[]>([]);
@@ -248,6 +249,7 @@ export default function App() {
         JSON SCHEMA:
         {
           "name": "Route Name", "name_en": "EN", "name_ko": "KO",
+          "author": "extracted handle/account name from source, e.g. 'TravelerJoe'",
           "summary": "ZH Summary", "summary_en": "EN Summary", "summary_ko": "KO Summary",
           "baseLocation": { "name": "Base Name", "name_en": "EN", "name_ko": "KO", "lat": number, "lng": number, "notes": "ZH notes", "notes_en": "EN", "notes_ko": "KO" },
           "checkpoints": [
@@ -378,9 +380,14 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-full h-[100dvh] bg-[#fdfaf6] overflow-hidden font-sans text-[#2d3436]">
-      <Onboarding />
+    <div className={cn(
+      "relative w-full h-[100dvh] transition-colors duration-500 overflow-hidden font-sans",
+      isDarkMode ? "bg-[#000000] text-[#FFFFFF] dark" : "bg-[#fdfaf6] text-[#2d3436]"
+    )}>
+      <Onboarding isDarkMode={isDarkMode} />
       <Controls 
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
         selectedLang={selectedLang}
         setSelectedLang={setSelectedLang}
         selectedDay={selectedDay}
@@ -427,20 +434,34 @@ export default function App() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-24 left-4 right-4 md:bottom-auto md:top-24 md:left-auto md:right-6 md:w-80 bg-white/95 backdrop-blur-md shadow-2xl rounded-[2rem] p-6 border border-[#8b5e3c]/10 z-[1050]"
+            className={cn(
+              "fixed bottom-24 left-4 right-4 md:bottom-auto md:top-24 md:left-auto md:right-6 md:w-80 backdrop-blur-md shadow-2xl rounded-[2rem] p-6 border z-[1050] transition-colors duration-500",
+              isDarkMode 
+                ? "bg-black/90 border-white/10" 
+                : "bg-white/95 border-[#8b5e3c]/10"
+            )}
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex flex-col">
-                <span className="text-[0.625rem] uppercase font-bold text-gray-400 tracking-widest">
+                <span className={cn(
+                  "text-[0.625rem] uppercase font-bold tracking-widest",
+                  isDarkMode ? "text-white/40" : "text-gray-400"
+                )}>
                   {(selectedPreview as any).type?.replace("_", " ") || "Location"}
                 </span>
-                <h3 className="font-serif text-xl text-[#8b5e3c] pr-6">
+                <h3 className={cn(
+                  "font-serif text-xl pr-6",
+                  isDarkMode ? "text-white" : "text-[#8b5e3c]"
+                )}>
                   {(selectedPreview as any)[selectedLang === "zh" ? "name" : (selectedLang === "en" ? "name_en" : "name_ko")] || (selectedPreview as any).name}
                 </h3>
               </div>
               <button 
                 onClick={() => setSelectedPreview(null)}
-                className="p-2 hover:bg-[#8b5e3c]/10 rounded-full text-[#8b5e3c] transition-colors"
+                className={cn(
+                  "p-2 rounded-full transition-colors",
+                  isDarkMode ? "hover:bg-white/10 text-white" : "hover:bg-[#8b5e3c]/10 text-[#8b5e3c]"
+                )}
                 aria-label="Close"
               >
                 <X size={18} strokeWidth={2.5} />
@@ -563,12 +584,23 @@ export default function App() {
                 });
               }}
               transition={{ type: "spring", damping: 35, stiffness: 400 }}
-              className="fixed bottom-0 left-0 right-0 h-[95dvh] bg-white/40 backdrop-blur-3xl rounded-t-[4rem] shadow-[0_-30px_100px_-20px_rgba(0,0,0,0.2)] z-[1100] border-t border-white/30 flex flex-col"
+              className={cn(
+                "fixed bottom-0 left-0 right-0 h-[95dvh] backdrop-blur-3xl rounded-t-[4rem] z-[1100] border-t flex flex-col transition-shadow duration-500",
+                isDarkMode 
+                  ? "bg-black/90 border-white/10 shadow-[0_-30px_100px_-20px_rgba(0,0,0,0.6)]" 
+                  : "bg-white/40 border-white/30 shadow-[0_-30px_100px_-20px_rgba(0,0,0,0.2)]"
+              )}
             >
               <div 
-                className="w-full pt-6 pb-6 flex flex-col items-center cursor-ns-resize shrink-0 touch-none active:bg-white/20 transition-colors rounded-t-[4rem]"
+                className={cn(
+                  "w-full pt-6 pb-6 flex flex-col items-center cursor-ns-resize shrink-0 touch-none transition-colors rounded-t-[4rem]",
+                  isDarkMode ? "active:bg-white/5" : "active:bg-white/20"
+                )}
               >
-                <div className="w-20 h-1.5 bg-[#2C2C2C]/10 rounded-full hover:bg-[#2C2C2C]/20 transition-colors" />
+                <div className={cn(
+                  "w-20 h-1.5 rounded-full transition-colors",
+                  isDarkMode ? "bg-white/10 hover:bg-white/20" : "bg-[#2C2C2C]/10 hover:bg-[#2C2C2C]/20"
+                )} />
               </div>
           
           <div id="itinerary-content" className="flex-1 overflow-y-auto px-6 md:px-12 pb-[100px] overscroll-contain touch-pan-y custom-scrollbar">
@@ -577,14 +609,20 @@ export default function App() {
               {/* Header */}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                  <h2 className="font-serif text-5xl text-[#2C2C2C] tracking-tight mb-3">
+                  <h2 className={cn(
+                    "font-serif text-5xl tracking-tight mb-3 transition-colors duration-500",
+                    isDarkMode ? "text-white" : "text-[#2C2C2C]"
+                  )}>
                     {localizedContent.title}
                   </h2>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <p className="text-sm text-[#8b5e3c]/60 font-serif tracking-wide">
+                    <p className={cn(
+                      "text-sm font-serif tracking-wide transition-colors",
+                      isDarkMode ? "text-white/40" : "text-[#8b5e3c]/60"
+                    )}>
                       {selectedLang === "zh" ? "AI 多源优化合成行程" : selectedLang === "ko" ? "AI 다중 소스 최적화 합성 일정" : "AI Multi-Source Optimized Synthesis"}
                     </p>
-                    <ExportTools plan={plannedPlan} lang={selectedLang} />
+                    <ExportTools plan={plannedPlan} lang={selectedLang} isDarkMode={isDarkMode} />
                   </div>
                 </div>
               </div>
@@ -593,21 +631,35 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/40 backdrop-blur-xl p-8 md:p-12 rounded-[3.5rem] border border-white/30 shadow-sm relative overflow-hidden"
+                className={cn(
+                  "backdrop-blur-xl p-8 md:p-12 rounded-[3.5rem] border shadow-sm relative overflow-hidden transition-all duration-500",
+                  isDarkMode 
+                    ? "bg-white/5 border-white/10" 
+                    : "bg-white/40 border-white/30"
+                )}
               >
                 <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                  <Star size={120} fill="currentColor" className="text-[#4a5d4e]" />
+                  <Star size={120} fill="currentColor" className={isDarkMode ? "text-amber-200" : "text-[#4a5d4e]"} />
                 </div>
                 <div className="relative z-10 space-y-4">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-[#4a5d4e] flex items-center justify-center text-white text-xs font-bold">
+                    <div className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
+                      isDarkMode ? "bg-amber-200 text-black" : "bg-[#4a5d4e] text-white"
+                    )}>
                        <Star size={14} fill="currentColor" />
                     </div>
-                    <h3 className="text-xs font-black tracking-widest text-[#4a5d4e] uppercase">
+                    <h3 className={cn(
+                      "text-xs font-black tracking-widest uppercase transition-colors",
+                      isDarkMode ? "text-amber-200" : "text-[#4a5d4e]"
+                    )}>
                       {selectedLang === "zh" ? "综合总结" : (selectedLang === "en" ? "Comprehensive Summary" : "종합 요약")}
                     </h3>
                   </div>
-                  <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed font-serif italic whitespace-pre-wrap">
+                  <div className={cn(
+                    "prose prose-sm max-w-none leading-relaxed font-serif italic whitespace-pre-wrap transition-colors",
+                    isDarkMode ? "text-white/60" : "text-gray-600"
+                  )}>
                     {localizedContent.summary}
                   </div>
                 </div>
@@ -616,10 +668,16 @@ export default function App() {
               {/* 2. Core Landmarks */}
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#4a5d4e]/10 flex items-center justify-center text-[#4a5d4e] font-bold">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors",
+                    isDarkMode ? "bg-amber-200/10 text-amber-200" : "bg-[#4a5d4e]/10 text-[#4a5d4e]"
+                  )}>
                     2
                   </div>
-                  <h3 className="text-xl font-serif text-[#4a5d4e]">
+                  <h3 className={cn(
+                    "text-xl font-serif transition-colors",
+                    isDarkMode ? "text-amber-200" : "text-[#4a5d4e]"
+                  )}>
                     {selectedLang === "zh" ? "核心景点" : (selectedLang === "en" ? "Core Landmarks" : "핵심 명소")}
                   </h3>
                 </div>
@@ -631,25 +689,42 @@ export default function App() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="group bg-white/40 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/30 hover:bg-white/60 hover:shadow-xl transition-all duration-500"
+                      className={cn(
+                        "group backdrop-blur-xl p-4 rounded-[2.5rem] border hover:shadow-xl transition-all duration-500",
+                        isDarkMode 
+                          ? "bg-white/5 border-white/10 hover:bg-white/10" 
+                          : "bg-white/40 border-white/30 hover:bg-white/60"
+                      )}
                     >
                       <div className="space-y-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xl shrink-0">{landmark.emoji || "📍"}</span>
-                            <h4 className="font-serif text-md text-[#2C2C2C] truncate pr-2">{landmark.displayName}</h4>
+                            <h4 className={cn(
+                                "font-serif text-md truncate pr-2 transition-colors",
+                                isDarkMode ? "text-white" : "text-[#2C2C2C]"
+                            )}>{landmark.displayName}</h4>
                           </div>
-                          <p className="text-xs text-[#2C2C2C]/50 font-serif italic">
+                          <p className={cn(
+                                "text-xs font-serif italic transition-colors",
+                                isDarkMode ? "text-white/40" : "text-[#2C2C2C]/50"
+                          )}>
                             {landmark.displayNotes}
                           </p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             {landmark.costRange && (
-                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#4a5d4e]/5 text-[#4a5d4e] rounded-md">
+                              <span className={cn(
+                                    "text-[0.5625rem] font-bold px-2 py-0.5 rounded-md transition-colors",
+                                    isDarkMode ? "bg-amber-200/10 text-amber-200" : "bg-[#4a5d4e]/5 text-[#4a5d4e]"
+                              )}>
                                 💰 {landmark.costRange}
                               </span>
                             )}
                             {landmark.travelTime && (
-                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#4a5d4e]/5 text-[#4a5d4e] rounded-md">
+                              <span className={cn(
+                                    "text-[0.5625rem] font-bold px-2 py-0.5 rounded-md transition-colors",
+                                    isDarkMode ? "bg-amber-200/10 text-amber-200" : "bg-[#4a5d4e]/5 text-[#4a5d4e]"
+                              )}>
                                 ⏱️ {landmark.travelTime}
                               </span>
                             )}
@@ -660,7 +735,12 @@ export default function App() {
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(landmark.name)}+${landmark.lat},${landmark.lng}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#4a5d4e]/20"
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-[0.5625rem] font-black tracking-tighter transition-all",
+                                isDarkMode 
+                                    ? "bg-white/5 border-white/10 text-white/60 hover:text-white" 
+                                    : "bg-white border-gray-100 text-gray-500 hover:border-[#4a5d4e]/20"
+                            )}
                           >
                             {selectedLang === "zh" ? "谷歌地图" : (selectedLang === "ko" ? "Google 지도" : "GMAPS")} <ExternalLink size={8} />
                           </a>
@@ -669,7 +749,12 @@ export default function App() {
                               href={landmark.website}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#4a5d4e]/20"
+                              className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-[0.5625rem] font-black tracking-tighter transition-all",
+                                isDarkMode 
+                                    ? "bg-white/5 border-white/10 text-white/60 hover:text-white" 
+                                    : "bg-white border-gray-100 text-gray-500 hover:border-[#4a5d4e]/20"
+                              )}
                             >
                               {selectedLang === "zh" ? "官网" : (selectedLang === "ko" ? "웹사이트" : "WEB")} <Globe size={8} />
                             </a>
@@ -684,10 +769,16 @@ export default function App() {
               {/* 3. Recommended Restaurants */}
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#8b5e3c]/10 flex items-center justify-center text-[#8b5e3c] font-bold">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors",
+                    isDarkMode ? "bg-amber-400/10 text-amber-400" : "bg-[#8b5e3c]/10 text-[#8b5e3c]"
+                  )}>
                     3
                   </div>
-                  <h3 className="text-xl font-serif text-[#4a5d4e]">
+                  <h3 className={cn(
+                    "text-xl font-serif transition-colors",
+                    isDarkMode ? "text-amber-200" : "text-[#4a5d4e]"
+                  )}>
                     {selectedLang === "zh" ? "推荐餐厅" : (selectedLang === "en" ? "Recommended Restaurants" : "추천 레스토랑")}
                   </h3>
                 </div>
@@ -699,28 +790,45 @@ export default function App() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="group bg-white/40 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/30 hover:bg-white/60 hover:shadow-xl transition-all duration-500"
+                      className={cn(
+                        "group backdrop-blur-xl p-4 rounded-[2.5rem] border hover:shadow-xl transition-all duration-500",
+                        isDarkMode 
+                          ? "bg-white/5 border-white/10 hover:bg-white/10" 
+                          : "bg-white/40 border-white/30 hover:bg-white/60"
+                      )}
                     >
                       <div className="space-y-3">
                         <div>
                           <div className="flex justify-between items-center mb-1">
                             <div className="flex items-center gap-2 truncate pr-2">
                               <span className="text-xl shrink-0">{venue.emoji || "🍴"}</span>
-                              <h4 className="font-serif text-md text-[#8b5e3c] truncate">{venue.displayName}</h4>
+                              <h4 className={cn(
+                                "font-serif text-md truncate transition-colors",
+                                isDarkMode ? "text-amber-200" : "text-[#8b5e3c]"
+                              )}>{venue.displayName}</h4>
                             </div>
                             <span className="text-[0.625rem] font-bold text-[#e67e22] shrink-0">★ {venue.rating || "4.8"}</span>
                           </div>
-                          <p className="text-xs text-[#2C2C2C]/50 font-serif italic">
+                          <p className={cn(
+                            "text-xs font-serif italic transition-colors",
+                            isDarkMode ? "text-white/40" : "text-[#2C2C2C]/50"
+                          )}>
                             {venue.displayDesc}
                           </p>
                           <div className="flex flex-wrap gap-2 pt-1">
                             {venue.costRange && (
-                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#8b5e3c]/5 text-[#8b5e3c] rounded-md">
+                              <span className={cn(
+                                "text-[0.5625rem] font-bold px-2 py-0.5 rounded-md transition-colors",
+                                isDarkMode ? "bg-amber-400/10 text-amber-400" : "bg-[#8b5e3c]/5 text-[#8b5e3c]"
+                              )}>
                                 💰 {venue.costRange}
                               </span>
                             )}
                             {venue.travelTime && (
-                              <span className="text-[0.5625rem] font-bold px-2 py-0.5 bg-[#8b5e3c]/5 text-[#8b5e3c] rounded-md">
+                              <span className={cn(
+                                "text-[0.5625rem] font-bold px-2 py-0.5 rounded-md transition-colors",
+                                isDarkMode ? "bg-amber-400/10 text-amber-400" : "bg-[#8b5e3c]/5 text-[#8b5e3c]"
+                              )}>
                                 ⏱️ {venue.travelTime}
                               </span>
                             )}
@@ -750,8 +858,11 @@ export default function App() {
                     </motion.div>
                   ))}
                   {localizedContent.restaurants.length === 0 && (
-                    <div className="col-span-full py-6 text-center border-2 border-dashed border-gray-100 rounded-[2.5rem]">
-                      <p className="text-sm text-gray-400 italic">
+                    <div className={cn(
+                      "col-span-full py-6 text-center border-2 border-dashed rounded-[2.5rem] transition-colors",
+                      isDarkMode ? "border-white/10 text-white/20" : "border-gray-100 text-gray-400"
+                    )}>
+                      <p className="text-sm italic">
                         {selectedLang === "zh" ? "尚未从这些来源提取到特定餐厅。" : (selectedLang === "ko" ? "아직 이 소스에서 추출된 레스토랑이 없습니다." : "No specific restaurants extracted from these sources yet.")}
                       </p>
                     </div>
@@ -762,10 +873,16 @@ export default function App() {
               {/* 4. Recommended Hotels */}
               <section className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors",
+                    isDarkMode ? "bg-indigo-400/10 text-indigo-400" : "bg-indigo-100 text-indigo-600"
+                  )}>
                     4
                   </div>
-                  <h3 className="text-xl font-serif text-[#4a5d4e]">
+                  <h3 className={cn(
+                    "text-xl font-serif transition-colors",
+                    isDarkMode ? "text-amber-200" : "text-[#4a5d4e]"
+                  )}>
                     {selectedLang === "zh" ? "推荐住宿" : (selectedLang === "en" ? "Recommended Hotels" : "추천 숙소")}
                   </h3>
                 </div>
@@ -777,18 +894,29 @@ export default function App() {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="group bg-white/40 backdrop-blur-xl p-4 rounded-[2.5rem] border border-white/30 hover:bg-white/60 hover:shadow-xl transition-all duration-500"
+                      className={cn(
+                        "group backdrop-blur-xl p-4 rounded-[2.5rem] border hover:shadow-xl transition-all duration-500",
+                        isDarkMode 
+                          ? "bg-white/5 border-white/10 hover:bg-white/10" 
+                          : "bg-white/40 border-white/30 hover:bg-white/60"
+                      )}
                     >
                       <div className="space-y-3">
                         <div>
                           <div className="flex justify-between items-center mb-1">
                             <div className="flex items-center gap-2 truncate pr-2">
                               <span className="text-xl shrink-0">{venue.emoji || "🏨"}</span>
-                              <h4 className="font-serif text-md text-[#8b5e3c] truncate">{venue.displayName}</h4>
+                              <h4 className={cn(
+                                "font-serif text-md truncate transition-colors",
+                                isDarkMode ? "text-amber-200" : "text-[#8b5e3c]"
+                              )}>{venue.displayName}</h4>
                             </div>
                             <span className="text-[0.625rem] font-bold text-indigo-500 shrink-0">★ {venue.rating || "4.9"}</span>
                           </div>
-                          <p className="text-xs text-[#2C2C2C]/50 font-serif italic">
+                          <p className={cn(
+                            "text-xs font-serif italic transition-colors",
+                            isDarkMode ? "text-white/40" : "text-[#2C2C2C]/50"
+                          )}>
                             {venue.displayDesc}
                           </p>
                         </div>
@@ -797,7 +925,12 @@ export default function App() {
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue.name)}+${venue.lat},${venue.lng}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[0.5625rem] font-black tracking-tighter text-gray-500 hover:border-[#8b5e3c]/20"
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-[0.5625rem] font-black tracking-tighter transition-all",
+                                isDarkMode 
+                                    ? "bg-white/5 border-white/10 text-white/60 hover:text-white" 
+                                    : "bg-white border-gray-100 text-gray-500 hover:border-[#8b5e3c]/20"
+                            )}
                            >
                             {selectedLang === "zh" ? "谷歌地图" : (selectedLang === "ko" ? "Google 지도" : "GMAPS")} <ExternalLink size={8} />
                            </a>
@@ -806,8 +939,11 @@ export default function App() {
                     </motion.div>
                   ))}
                   {localizedContent.hotels.length === 0 && (
-                    <div className="col-span-full py-6 text-center border-2 border-dashed border-gray-100 rounded-[2.5rem]">
-                      <p className="text-sm text-gray-400 italic">
+                    <div className={cn(
+                        "col-span-full py-6 text-center border-2 border-dashed rounded-[2.5rem] transition-colors",
+                        isDarkMode ? "border-white/10 text-white/20" : "border-gray-100 text-gray-400"
+                    )}>
+                      <p className="text-sm italic">
                         {selectedLang === "zh" ? "尚未从这些来源提取到特定住宿。" : (selectedLang === "ko" ? "아직 이 소스에서 추출된 숙소가 없습니다." : "No specific hotels extracted from these sources yet.")}
                       </p>
                     </div>
@@ -829,7 +965,12 @@ export default function App() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-[#4a5d4e] text-white px-4 py-2 rounded-full border border-white/20 text-[0.625rem] font-bold tracking-widest shadow-xl flex items-center gap-2"
+              className={cn(
+                "px-4 py-2 rounded-full border text-[0.625rem] font-bold tracking-widest shadow-xl flex items-center gap-2 transition-all duration-500",
+                isDarkMode 
+                  ? "bg-white/10 text-white border-white/20 shadow-black/40" 
+                  : "bg-[#4a5d4e] text-white border-white/20 shadow-xl"
+              )}
             >
               ❄️ {selectedLang === "zh" ? "冬季协议已激活" : (selectedLang === "ko" ? "겨울 프로토콜 활성화됨" : "WINTER PROTOCOL ACTIVE")}
             </motion.div>
