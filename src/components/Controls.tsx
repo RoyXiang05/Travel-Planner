@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { GoogleGenAI } from "@google/genai";
 import { 
   Calendar, 
   Map as MapIcon, 
@@ -90,16 +91,37 @@ export default function Controls({
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZoneName: 'short' }));
-      // Simulate slight temperature fluctuations (±1 degree)
-      setTemp(prev => {
-        const delta = Math.random() > 0.5 ? 0.1 : -0.1;
-        return Number((prev + delta).toFixed(1));
-      });
-    }, 60000); // Update every minute
+      // If we don't have a specific destination time, keep using local
+      if (destination === "Georgia" || !destination) {
+        setTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZoneName: 'short' }));
+      }
+    }, 60000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [destination]);
+
+  useEffect(() => {
+    if (!destination || destination === "Georgia") return;
+    
+    const timeout = setTimeout(async () => {
+      try {
+        const prompt = `Provide the current local 24h time and temperature in Celsius for ${destination}. Respond ONLY with JSON: {"time": "HH:mm", "temp": number}. Example: {"time": "14:30", "temp": 22}`;
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        });
+        
+        const data = JSON.parse(response.text.replace(/```json|```/g, "").trim());
+        if (data.time) setTime(data.time);
+        if (data.temp !== undefined) setTemp(data.temp);
+      } catch (e) {
+        console.error("Weather sync failed", e);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, [destination]);
 
   const t = (zh: string, en: string, ko: string) => {
     if (selectedLang === "zh") return zh;
@@ -140,13 +162,13 @@ export default function Controls({
           {/* Day Selector */}
           {plannedPlan && (
             <div className={cn(
-              "p-1 rounded-full shadow-sm flex items-center border overflow-x-auto max-w-[80vw] no-scrollbar transition-colors relative",
+              "flex p-1 rounded-full shadow-sm border shrink-0 overflow-x-auto max-w-[80vw] no-scrollbar relative transition-colors",
               isDarkMode ? "bg-[#1C1C1E]/90 border-white/10" : "bg-[#F3F4F6]/95 border-white/50"
             )}>
               <button
                 onClick={() => setSelectedDay(null)}
                 className={cn(
-                  "px-5 py-2 rounded-full text-[0.625rem] font-serif font-bold transition-all whitespace-nowrap relative z-10",
+                  "px-7 py-2.5 rounded-full text-xs font-serif font-bold transition-all whitespace-nowrap relative z-10",
                   selectedDay === null 
                     ? "text-white" 
                     : (isDarkMode ? "text-white/60 hover:text-white" : "text-[#374151] hover:text-[#4a5d4e]")
@@ -166,7 +188,7 @@ export default function Controls({
                   key={i}
                   onClick={() => setSelectedDay(i + 1)}
                   className={cn(
-                    "px-5 py-2 rounded-full text-[0.625rem] font-serif font-bold transition-all whitespace-nowrap relative z-10",
+                    "px-7 py-2.5 rounded-full text-xs font-serif font-bold transition-all whitespace-nowrap relative z-10",
                     selectedDay === i + 1 
                       ? "text-white" 
                       : (isDarkMode ? "text-white/60 hover:text-white" : "text-[#374151] hover:text-[#4a5d4e]")

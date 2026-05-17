@@ -39,6 +39,7 @@ interface MapComponentProps {
   center: [number, number];
   onSelectVenue: (venue: Venue | DrivingTip | Landmark) => void;
   selectedLang: "zh" | "en" | "ko";
+  isDarkMode: boolean;
   baseLocation?: {
     name: string;
     name_en?: string;
@@ -64,6 +65,7 @@ export default function MapComponent({
   center,
   onSelectVenue,
   selectedLang,
+  isDarkMode,
   baseLocation
 }: MapComponentProps) {
 
@@ -92,7 +94,19 @@ export default function MapComponent({
     if (type === "base") { emoji = "📌"; color = "bg-[#4a5d4e]"; }
     
     return L.divIcon({
-      html: `<div class="${color} p-1 rounded-lg border-2 border-white shadow-xl flex items-center justify-center w-8 h-8 text-sm cursor-pointer">${emoji}</div>`,
+      html: `<div style="background-color: ${
+        type === 'hotel' ? '#6366f1' : 
+        type === 'restaurant' ? '#f43f5e' : 
+        type === 'cafe' ? '#d97706' : 
+        type === 'parking' ? '#2563eb' : 
+        type === 'gas' ? '#059669' : 
+        type === 'attraction' ? '#9333ea' : 
+        type === 'speed_trap' ? '#dc2626' : 
+        type === 'caution' ? '#f59e0b' : 
+        type === 'viewpoint' ? '#0891b2' : 
+        type === 'checkpoint' ? '#f97316' : 
+        type === 'base' ? '#4a5d4e' : '#6b7280'
+      }" class="${type === 'speed_trap' ? 'animate-pulse' : type === 'caution' ? 'animate-bounce' : ''} p-1 rounded-lg border-2 border-white shadow-xl flex items-center justify-center w-8 h-8 text-sm cursor-pointer">${emoji}</div>`,
       className: "",
       iconSize: [32, 32],
       iconAnchor: [16, 32]
@@ -106,9 +120,12 @@ export default function MapComponent({
       className="z-0"
       zoomControl={false}
     >
-      {/* Natural Tones Tile Layer (CartoDB Positron) */}
+      {/* Natural Tones Tile Layer (CartoDB Light or Dark) */}
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        url={isDarkMode 
+          ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        }
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
       />
 

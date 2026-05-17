@@ -85,20 +85,20 @@ export default function App() {
 
   const saveCurrentToProject = useCallback((plan: RoutePlanResponse, existingLinks: string[]) => {
     const newProject: Project = {
-      id: currentProjectId || crypto.randomUUID(),
+      id: crypto.randomUUID(),
       name: plan.name || "New Trip",
-      createdAt: projects.find(p => p.id === currentProjectId)?.createdAt || new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       sourceLinks: existingLinks,
       plan: plan,
     };
 
     setProjects(prev => {
-      const filtered = prev.filter(p => p.id !== newProject.id);
-      return [newProject, ...filtered];
+      const newList = [newProject, ...prev];
+      return newList.slice(0, 5);
     });
     setCurrentProjectId(newProject.id);
-  }, [currentProjectId, projects]);
+  }, []);
 
   const loadProject = (project: Project) => {
     setPlannedPlan(project.plan);
@@ -425,6 +425,7 @@ export default function App() {
         center={center}
         onSelectVenue={setSelectedPreview}
         selectedLang={selectedLang}
+        isDarkMode={isDarkMode}
         baseLocation={plannedPlan?.baseLocation}
       />
 
@@ -585,7 +586,7 @@ export default function App() {
               }}
               transition={{ type: "spring", damping: 35, stiffness: 400 }}
               className={cn(
-                "fixed bottom-0 left-0 right-0 h-[95dvh] backdrop-blur-3xl rounded-t-[4rem] z-[1100] border-t flex flex-col transition-shadow duration-500",
+                "fixed bottom-0 left-0 right-0 h-[95dvh] backdrop-blur-xl rounded-t-[4rem] z-[1100] border-t flex flex-col",
                 isDarkMode 
                   ? "bg-black/90 border-white/10 shadow-[0_-30px_100px_-20px_rgba(0,0,0,0.6)]" 
                   : "bg-white/40 border-white/30 shadow-[0_-30px_100px_-20px_rgba(0,0,0,0.2)]"
