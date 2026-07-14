@@ -13,7 +13,7 @@ import { deserializeState, serializeState } from "./lib/urlUtils";
 import Onboarding from "./components/Onboarding";
 import ExportTools from "./components/ExportTools";
 import ApiConfigModal from "./components/ApiConfigModal";
-import { getGeminiApiKey } from "./lib/apiKey";
+import { getGeminiApiKey, getGeminiErrorMessage } from "./lib/apiKey";
 
 // Sample Initial Routes (Georgia Military Highway etc.)
 const INITIAL_ROUTES: Route[] = [];
@@ -297,7 +297,14 @@ export default function App() {
       const responseText = response.text;
       if (!responseText) throw new Error("Empty AI response");
 
-      const cleaned = responseText.trim().replace(/```json|```/g, "");
+      let cleaned = responseText.trim();
+      const startIdx = cleaned.indexOf("{");
+      const endIdx = cleaned.lastIndexOf("}");
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        cleaned = cleaned.substring(startIdx, endIdx + 1);
+      } else {
+        cleaned = cleaned.replace(/```json|```/g, "");
+      }
       const plan: RoutePlanResponse = JSON.parse(cleaned);
       
       if (plan && Array.isArray(plan.checkpoints)) {
@@ -351,7 +358,8 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : "AI was unable to synthesize the route.");
+      const errMsg = getGeminiErrorMessage(err);
+      toast.error(errMsg || "AI was unable to synthesize the route.");
     } finally {
       setIsProcessing(false);
     }
@@ -373,7 +381,14 @@ export default function App() {
       const responseText = response.text;
       if (!responseText) throw new Error("Empty AI response");
       
-      const cleaned = responseText.replace(/```json|```/g, "").trim();
+      let cleaned = responseText.trim();
+      const startIdx = cleaned.indexOf("[");
+      const endIdx = cleaned.lastIndexOf("]");
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        cleaned = cleaned.substring(startIdx, endIdx + 1);
+      } else {
+        cleaned = cleaned.replace(/```json|```/g, "").trim();
+      }
       const parsed = JSON.parse(cleaned);
 
       if (Array.isArray(parsed)) {
@@ -387,7 +402,8 @@ export default function App() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to fetch events");
+      const errMsg = getGeminiErrorMessage(err);
+      toast.error(errMsg ? `Failed to fetch events: ${errMsg}` : "Failed to fetch events");
     } finally {
       setIsProcessing(false);
     }

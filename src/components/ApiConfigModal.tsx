@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { GoogleGenAI } from "@google/genai";
 import { Key, Eye, EyeOff, CheckCircle2, AlertCircle, X, ShieldAlert, Sparkles } from "lucide-react";
 import { cn } from "../lib/utils";
-import { saveGeminiApiKey, getGeminiApiKey } from "../lib/apiKey";
+import { saveGeminiApiKey, getGeminiApiKey, cleanApiKey, getGeminiErrorMessage } from "../lib/apiKey";
 
 interface ApiConfigModalProps {
   isOpen: boolean;
@@ -44,7 +44,8 @@ export default function ApiConfigModal({ isOpen, onClose, selectedLang, isDarkMo
   };
 
   const handleTestKey = async () => {
-    if (!apiKey.trim()) {
+    const cleanedKey = cleanApiKey(apiKey);
+    if (!cleanedKey) {
       setErrorMessage(t("请输入 API Key 后再进行测试", "Please enter an API Key to test", "테스트할 API Key를 입력하세요"));
       setVerifyStatus("error");
       return;
@@ -55,7 +56,7 @@ export default function ApiConfigModal({ isOpen, onClose, selectedLang, isDarkMo
     setErrorMessage("");
 
     try {
-      const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+      const ai = new GoogleGenAI({ apiKey: cleanedKey });
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: "Respond with the word 'OK'.",
@@ -64,12 +65,13 @@ export default function ApiConfigModal({ isOpen, onClose, selectedLang, isDarkMo
       if (response.text && response.text.toUpperCase().includes("OK")) {
         setVerifyStatus("success");
       } else {
-        throw new Error("Unexpected API response content");
+        throw new Error(t("API 返回内容不符合预期", "The API returned an unexpected response content.", "API 응답 내용이 예상과 다릅니다."));
       }
     } catch (err: any) {
       console.error("API Key validation error:", err);
       setVerifyStatus("error");
-      setErrorMessage(err.message || t("连接测试失败，请检查 Key 的有效性或网络。", "Connection test failed. Please verify the key or check your network.", "연결 테스트 실패. Key 유효성 또는 네트워크를 확인하세요."));
+      const errMsg = getGeminiErrorMessage(err);
+      setErrorMessage(errMsg || t("连接测试失败，请检查 Key 的有效性或网络。", "Connection test failed. Please verify the key or check your network.", "연결 테스트 실패. Key 유효성 또는 네트워크를 확인하세요."));
     } finally {
       setIsVerifying(false);
     }
