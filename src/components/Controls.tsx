@@ -112,7 +112,7 @@ export default function Controls({
         const prompt = `Provide the current local 24h time and temperature in Celsius for ${destination}. Respond ONLY with JSON: {"time": "HH:mm", "temp": number}. Example: {"time": "14:30", "temp": 22}`;
         const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
         const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-3.5-flash",
           contents: [{ role: "user", parts: [{ text: prompt }] }],
         });
         

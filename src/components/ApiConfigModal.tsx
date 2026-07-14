@@ -57,7 +57,7 @@ export default function ApiConfigModal({ isOpen, onClose, selectedLang, isDarkMo
     try {
       const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         contents: "Respond with the word 'OK'.",
       });
 
