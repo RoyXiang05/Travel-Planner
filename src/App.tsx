@@ -12,6 +12,8 @@ import { RefreshCw, Search, ExternalLink, MapPin, Globe, Star, Compass, Utensils
 import { deserializeState, serializeState } from "./lib/urlUtils";
 import Onboarding from "./components/Onboarding";
 import ExportTools from "./components/ExportTools";
+import ApiConfigModal from "./components/ApiConfigModal";
+import { getGeminiApiKey } from "./lib/apiKey";
 
 // Sample Initial Routes (Georgia Military Highway etc.)
 const INITIAL_ROUTES: Route[] = [];
@@ -37,6 +39,18 @@ export default function App() {
   const [selectedLang, setSelectedLang] = useState<"zh" | "en" | "ko">("zh");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+
+  // Show API Key configuration popup for the first visit
+  useEffect(() => {
+    const configured = localStorage.getItem("custom_api_configured");
+    if (!configured) {
+      const timer = setTimeout(() => {
+        setIsApiModalOpen(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Project Management State
   const [projects, setProjects] = useState<Project[]>([]);
@@ -274,7 +288,7 @@ export default function App() {
         
         Respond ONLY with the JSON string.`;
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -350,7 +364,7 @@ export default function App() {
       Format as a JSON array of objects: [{ "name": string, "type": string, "description": string, "coordinates": [lat, lng] }]. 
       Only return the JSON.`;
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -386,6 +400,7 @@ export default function App() {
     )}>
       <Onboarding isDarkMode={isDarkMode} />
       <Controls 
+        onOpenApiConfig={() => setIsApiModalOpen(true)}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
         selectedLang={selectedLang}
@@ -989,6 +1004,13 @@ export default function App() {
           </filter>
         </defs>
       </svg>
+
+      <ApiConfigModal 
+        isOpen={isApiModalOpen} 
+        onClose={() => setIsApiModalOpen(false)} 
+        selectedLang={selectedLang} 
+        isDarkMode={isDarkMode} 
+      />
     </div>
   );
 }

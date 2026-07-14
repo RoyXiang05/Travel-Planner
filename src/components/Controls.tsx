@@ -21,13 +21,16 @@ import {
   History,
   Trash2,
   ExternalLink,
-  Film
+  Film,
+  Key
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { Project } from "../types";
+import { getGeminiApiKey } from "../lib/apiKey";
 
 interface ControlsProps {
+  onOpenApiConfig: () => void;
   selectedLang: "zh" | "en" | "ko";
   setSelectedLang: (l: "zh" | "en" | "ko") => void;
   selectedDay: number | null;
@@ -55,6 +58,7 @@ interface ControlsProps {
 }
 
 export default function Controls({
+  onOpenApiConfig,
   selectedLang,
   setSelectedLang,
   selectedDay,
@@ -106,7 +110,7 @@ export default function Controls({
     const timeout = setTimeout(async () => {
       try {
         const prompt = `Provide the current local 24h time and temperature in Celsius for ${destination}. Respond ONLY with JSON: {"time": "HH:mm", "temp": number}. Example: {"time": "14:30", "temp": 22}`;
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -226,8 +230,19 @@ export default function Controls({
                 "w-8 h-8 rounded-full flex items-center justify-center transition-all",
                 isDarkMode ? "bg-white/10 text-white" : "bg-black/5 text-gray-600 hover:bg-black/10"
               )}
+              title={t("切换主题", "Toggle Theme", "테마 전환")}
             >
               {isDarkMode ? <Sun size={14} /> : <Clock size={14} />}
+            </button>
+            <button 
+              onClick={onOpenApiConfig}
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                isDarkMode ? "bg-white/10 text-white hover:text-amber-200" : "bg-black/5 text-gray-600 hover:bg-[#4a5d4e]/10 hover:text-[#4a5d4e]"
+              )}
+              title={t("API 配置", "API Settings", "API 설정")}
+            >
+              <Key size={14} />
             </button>
           </div>
           
