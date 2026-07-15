@@ -1,3 +1,5 @@
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+
 export function cleanApiKey(key: string): string {
   let cleaned = key.trim();
   // Strip outer quotes if users accidentally copied them
@@ -8,6 +10,64 @@ export function cleanApiKey(key: string): string {
     cleaned = cleaned.slice(1, -1).trim();
   }
   return cleaned;
+}
+
+export async function generateGeminiContent(
+  params: {
+    contents: string | any[];
+    config?: any;
+    model?: string;
+  }
+): Promise<GenerateContentResponse> {
+  const apiKey = getGeminiApiKey();
+  const ai = new GoogleGenAI({ apiKey });
+  
+  // Try models in order of preference
+  const modelsToTry = [
+    params.model || "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-flash-latest"
+  ];
+  
+  // Remove duplicates
+  const uniqueModels = Array.from(new Set(modelsToTry));
+  
+  let lastError: any = null;
+  
+  for (const model of uniqueModels) {
+    try {
+      console.log(`[Gemini API] Attempting generation with model: ${model}`);
+      
+      const callParams: any = {
+        model: model,
+        contents: typeof params.contents === "string"
+          ? [{ role: "user", parts: [{ text: params.contents }] }]
+          : params.contents
+      };
+      
+      if (params.config) {
+        callParams.config = params.config;
+      }
+      
+      const response = await ai.models.generateContent(callParams);
+      if (response && response.text) {
+        return response;
+      }
+      throw new Error("Empty response received from Gemini model");
+    } catch (err: any) {
+      console.warn(`[Gemini API] Model ${model} failed:`, err);
+      lastError = err;
+      
+      // Stop fallback early if it is a clear authorization or invalid API key issue (400, 403)
+      const status = err?.status || err?.code;
+      const isAuthError = status === 400 || status === 403 || String(err?.message || "").includes("API key not valid");
+      if (isAuthError) {
+        throw err;
+      }
+    }
+  }
+  
+  throw lastError;
 }
 
 export function getGeminiApiKey(): string {

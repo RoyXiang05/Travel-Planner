@@ -27,7 +27,7 @@ import {
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { Project } from "../types";
-import { getGeminiApiKey } from "../lib/apiKey";
+import { getGeminiApiKey, generateGeminiContent } from "../lib/apiKey";
 
 interface ControlsProps {
   onOpenApiConfig: () => void;
@@ -110,9 +110,7 @@ export default function Controls({
     const timeout = setTimeout(async () => {
       try {
         const prompt = `Provide the current local 24h time and temperature in Celsius for ${destination}. Respond ONLY with JSON: {"time": "HH:mm", "temp": number}. Example: {"time": "14:30", "temp": 22}`;
-        const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+        const response = await generateGeminiContent({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
         });
         

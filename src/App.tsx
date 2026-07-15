@@ -13,7 +13,7 @@ import { deserializeState, serializeState } from "./lib/urlUtils";
 import Onboarding from "./components/Onboarding";
 import ExportTools from "./components/ExportTools";
 import ApiConfigModal from "./components/ApiConfigModal";
-import { getGeminiApiKey, getGeminiErrorMessage } from "./lib/apiKey";
+import { getGeminiApiKey, getGeminiErrorMessage, generateGeminiContent } from "./lib/apiKey";
 
 // Sample Initial Routes (Georgia Military Highway etc.)
 const INITIAL_ROUTES: Route[] = [];
@@ -288,9 +288,7 @@ export default function App() {
         
         Respond ONLY with the JSON string.`;
 
-      const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+      const response = await generateGeminiContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 
@@ -372,9 +370,7 @@ export default function App() {
       Format as a JSON array of objects: [{ "name": string, "type": string, "description": string, "coordinates": [lat, lng] }]. 
       Only return the JSON.`;
 
-      const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+      const response = await generateGeminiContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
       });
 
